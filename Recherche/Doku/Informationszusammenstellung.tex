@@ -1,0 +1,328 @@
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[ngerman]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{microtype}
+\usepackage{hyperref}
+\usepackage{xurl}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{csquotes}
+\usepackage{siunitx}
+\sisetup{locale=DE}
+
+\geometry{left=25mm,right=25mm,top=25mm,bottom=28mm}
+\setlist{noitemsep,topsep=4pt}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=blue
+}
+
+\title{\textbf{State-of-the-Art-Recherche: Optische Kratzererkennung auf metallischen Oberflächen}\\
+\large Lösungsansätze, Datensätze, Anforderungen und Vergleich}
+\author{F\&E-Projekt Robotik und KI: Optische Kratzererkennung}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Diese Dokumentation fasst die bereitgestellten Recherche-Notizen und Papers zu optischer Defekt- und insbesondere Kratzererkennung auf metallischen Oberflächen zusammen. Der Fokus liegt auf aktuell relevanten Lösungskonzepten: physikalisch unterstützte Bildaufnahme mit Shape-from-Shading, klassische Deep-Learning-Detektoren wie YOLO und R-CNN, Transformer- bzw. Vision-Transformer-basierte Modelle, Feature-Pyramid-Ansätze sowie unüberwachte Anomalieerkennung mit EfficientAD. Anschließend werden passende Datensätze, daraus abgeleitete Anforderungen an ein eigenes System sowie ein kurzer Vergleich der Ansätze dargestellt.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Ausgangssituation und Zielsetzung}
+
+Das Projektziel besteht darin, ein ML-basiertes System zur automatisierten optischen Erkennung von Kratzern auf metallischen Oberflächen zu entwickeln. In der Projektaufgabe wird hervorgehoben, dass metallische Oberflächen aufgrund reflektierender Eigenschaften und variierender Texturen eine besondere Herausforderung für klassische Bildverarbeitung darstellen. Außerdem soll systematisch untersucht werden, mit welcher Zuverlässigkeit verschiedene Verfahren Defekte identifizieren und bis zu welcher minimalen Kratzergröße eine prozesssichere Detektion unter den gewählten Bedingungen möglich ist \cite{projektaufgabe}. 
+
+Für die State-of-the-Art-Recherche ist deshalb nicht nur die Modellarchitektur relevant, sondern die gesamte Inspektionskette: Beleuchtung, Kameraauflösung, Bildvorverarbeitung, Annotation, Modelltraining, Evaluation und Visualisierung der Ergebnisse. Gerade bei Kratzern auf Metall können Reflexionen, Bearbeitungsspuren, Flecken, Texturen oder geringe Kontraste visuell ähnlich wie echte Defekte erscheinen. Die bereitgestellte Informationssammlung hebt deshalb besonders die Unterscheidung zwischen echten Defekten und prozessbedingten Spuren hervor \cite{ersteinfos}. 
+
+\section{Lösungsansatz 1: Shape-from-Shading und kontrollierte Beleuchtung}
+
+\subsection{Grundidee}
+
+Shape-from-Shading (SFS) ist ein physikalisch motivierter Ansatz, bei dem aus Licht- und Schatteninformationen Rückschlüsse auf die dreidimensionale Form bzw. feine Krümmungsunterschiede einer Oberfläche gezogen werden. In der bereitgestellten Informationssammlung wird SFS als Verfahren beschrieben, das nicht nur die reflektierte Lichtintensität betrachtet, sondern Krümmungsinformationen sichtbar machen kann. Dadurch können Fehler, Poren oder Kratzer deutlicher hervortreten, während bestimmte störende Oberflächenerscheinungen im Krümmungsbild reduziert werden \cite{ersteinfos}.
+
+Ein praktisches SFS-Setup arbeitet typischerweise mit mehreren Beleuchtungsrichtungen. In der Informationssammlung wird ein Verfahren beschrieben, bei dem vier Bilder aus unterschiedlichen Beleuchtungsrichtungen aufgenommen und algorithmisch zu einem neuen Bild verrechnet werden \cite{ersteinfos}. Die Grundannahme ist, dass ein echter geometrischer Defekt sein Erscheinungsbild abhängig von der Beleuchtungsrichtung verändert, während reine Helligkeits- oder Texturstörungen anders reagieren können.
+
+\subsection{Relevanz für metallische Oberflächen}
+
+Metallische Oberflächen sind wegen ihrer Reflexionen besonders schwierig. Ein rein datengetriebenes Modell kann dabei versehentlich lernen, Beleuchtungsartefakte, Spiegelungen oder Bearbeitungsspuren als Defekt zu interpretieren. SFS kann hier als Vorverarbeitung oder zusätzliche Bildmodalität dienen: Statt nur ein RGB- oder Grauwertbild zu analysieren, kann ein daraus abgeleitetes Krümmungs- oder Oberflächenbild an ein ML-Modell übergeben werden. Die bereitgestellte Quelle betont, dass die Kombination aus KI und passenden physikalischen Aufnahmebedingungen eine präzisere Oberflächenkontrolle ermöglichen kann \cite{ersteinfos}.
+
+Das in den Notizen genannte Paper \enquote{Surface inspection system for industrial components based on shape from shading minimization approach} beschreibt SFS als klassisches Problem der 3D-Formrückgewinnung aus Schattierungsvariationen. Die Qualität der Tiefen- bzw. Forminformation hängt demnach unter anderem von Beleuchtungsrichtung, spektraler Energieverteilung, räumlicher Position der Beleuchtung, Oberflächenreflektivität und Geometrie der Oberfläche ab \cite{ersteinfos,sfs_paper}. Daraus folgt für das eigene Projekt, dass die Aufnahmebedingungen nicht als Nebensache behandelt werden dürfen: Eine robuste Kratzererkennung hängt stark davon ab, ob die Beleuchtung Defekte reproduzierbar sichtbar macht.
+
+\subsection{Patch-Verarbeitung bei kleinen Defekten}
+
+In der Informationssammlung wird zudem ein konkretes praktisches Problem beschrieben: Bei Bauteilen von etwa \SI{250}{\milli\metre} $\times$ \SI{250}{\milli\metre} und Defekten unter \SI{1}{\milli\metre} wäre eine Analyse des gesamten Bildausschnitts zu grob. Als Lösung werden hochauflösende Kameratechnik und die Aufteilung des Bildes in kleinere Patches genannt, die jeweils einzeln analysiert werden \cite{ersteinfos}. 
+
+Für Kratzerdetektion ist dieser Punkt zentral. Sehr kleine Defekte nehmen nur wenige Pixel ein, wenn die Kameraauflösung oder der Arbeitsabstand nicht ausreichend gewählt ist. Patch-Verarbeitung erhöht die effektive Detailbetrachtung, erlaubt lokales Training und kann die Balance zwischen hoher Auflösung und begrenztem GPU-Speicher verbessern. Gleichzeitig entstehen neue Anforderungen: Die Patchgröße muss zur minimal gewünschten Kratzergröße passen, Patches müssen überlappen, um Randfehler zu vermeiden, und die Patch-Ergebnisse müssen wieder zu einer verständlichen Gesamtvisualisierung zusammengesetzt werden.
+
+\subsection{Mögliche Probleme}
+
+SFS ist kein reiner Softwareansatz. Es benötigt kontrollierte Beleuchtung, mechanisch stabile Positionierung und reproduzierbare Aufnahmen. Änderungen in Material, Rauheit, Glanzgrad oder Bauteillage können das resultierende Bild beeinflussen. Außerdem muss das Setup kalibriert werden, damit Unterschiede im SFS-Bild tatsächlich mit Defekten und nicht mit Beleuchtungsdrift oder Oberflächenneigung zusammenhängen. Für ein Studienprojekt kann SFS dennoch sehr wertvoll sein, wenn ein kontrollierbares Prüfsetup aufgebaut werden kann. Besonders sinnvoll ist ein hybrider Ansatz: SFS als kontrastverstärkende Bildmodalität, anschließend ein ML-Modell für Detektion, Segmentierung oder Anomalieerkennung.
+
+\section{Lösungsansatz 2: CNN-basierte Klassifikation und Transfer Learning}
+
+\subsection{Grundidee}
+
+Automated Optical Inspection (AOI) beschreibt automatisierte visuelle Qualitätsprüfung. In der bereitgestellten ViT-Arbeit wird AOI als Anwendung beschrieben, bei der Produkte durch Bildklassifikationsmodelle als defekt oder nicht defekt klassifiziert werden; CNNs werden dort als bisher bevorzugte Modellfamilie für solche Anwendungen eingeordnet \cite{vit_thesis}. CNNs extrahieren lokale visuelle Muster über Faltungen und eignen sich deshalb grundsätzlich gut für Kanten, Texturen, Kratzer, Flecken und andere lokale Defektstrukturen.
+
+Ein einfacher CNN-basierter Ansatz kann für das Projekt als Baseline dienen. Er kann entweder ganze Bilder, Bildausschnitte oder Patches klassifizieren. Eine binäre Klassifikation wäre \enquote{Kratzer vorhanden / nicht vorhanden}; eine mehrklassige Klassifikation könnte weitere Defekttypen trennen. Für die im Projekt geforderte Visualisierung ist reine Klassifikation allerdings nur begrenzt ausreichend, weil sie keine präzise Defektposition liefert.
+
+\subsection{Transfer Learning}
+
+Ein wiederkehrendes Problem industrieller Defekterkennung ist der Mangel an ausreichend vielen gelabelten Defektbildern. Die ViT-Arbeit beschreibt Transfer Learning als Lösung: Ein Modell wird zunächst auf einem großen Datensatz vortrainiert und anschließend auf die konkrete Defektaufgabe feinjustiert. Dies reduziert typischerweise den Bedarf an Trainingsdaten und Rechenressourcen \cite{vit_thesis}. Auch wenn diese Darstellung im Kontext von ViT diskutiert wird, gilt dieselbe Grundidee für CNNs.
+
+Für das Projekt bedeutet dies: Statt ein Modell von Grund auf mit wenigen Kratzerbildern zu trainieren, sollte ein vortrainiertes Backbone, etwa aus der ImageNet-Welt, als Startpunkt verwendet werden. Die finalen Schichten können dann auf die eigenen Kratzer- und Nicht-Kratzerklassen angepasst werden. Zusätzlich sind Datenaugmentationen wie Rotation, Helligkeitsvariation, Kontrastvariation oder leichte geometrische Transformationen sinnvoll, sofern sie die physikalische Realität des Prüfprozesses nicht verfälschen.
+
+\subsection{Mögliche Probleme}
+
+Ein CNN-Klassifikator kann hohe Genauigkeit erreichen, liefert aber ohne zusätzliche Verfahren keine pixelgenaue Aussage über die Kratzerposition. Bei kleinen Kratzern besteht außerdem die Gefahr, dass sie im Downsampling des Netzwerks verschwinden. Werden ganze Bilder klassifiziert, kann das Modell zudem auf irrelevante Bildbereiche oder Beleuchtungsartefakte reagieren. Für eine belastbare Kratzererkennung sollte ein CNN deshalb entweder patchbasiert eingesetzt, mit Segmentierungsarchitekturen kombiniert oder als Feature-Extractor für Anomalieerkennung verwendet werden.
+
+\section{Lösungsansatz 3: Einstufige Objektdetektion mit YOLO}
+
+\subsection{Grundidee}
+
+YOLO-Modelle gehören zu den einstufigen Objektdetektoren. Sie sagen Objektklassen und Bounding Boxes in einem einzigen Durchlauf vorher. Dadurch sind sie schnell und vergleichsweise einfach zu deployen. Das Review \enquote{Applications of Deep Learning to Metal Surface Defect Detection} beschreibt YOLO als besonders geeignet für industrielle Online-Detektion, weil die Modellfamilie eine hohe Echtzeitfähigkeit, schnelle Detektionsgeschwindigkeit, einfache Architektur und gute Deploybarkeit besitzt \cite{applications_review}. Auch die Informationssammlung fasst YOLO und SSD als einstufige Ansätze zusammen, die Geschwindigkeit und Einfachheit priorisieren \cite{ersteinfos}.
+
+Für Kratzererkennung könnte YOLO eingesetzt werden, wenn Kratzer als Objekte mit Bounding Boxes annotiert werden. Das Modell würde dann nicht nur entscheiden, ob ein Kratzer vorhanden ist, sondern auch eine grobe Position und Ausdehnung liefern. Das ist für eine Ergebnisvisualisierung im Projekt bereits deutlich hilfreicher als reine Bildklassifikation.
+
+\subsection{Anpassungen für Oberflächendefekte}
+
+Metallische Defekte sind oft klein, länglich, kontrastarm oder unregelmäßig. Das Review zeigt, dass YOLO-basierte Verbesserungen im Bereich Metalloberflächen häufig zwei Ziele verfolgen: bessere Multi-Scale-Feature-Extraktion und optimierte Anchor- bzw. Bounding-Box-Anpassung \cite{applications_review}. Genannte Verbesserungen umfassen zum Beispiel Feature-Pyramids, deformierbare Faltungen, Kontextmodule, K-means++-basierte Anchor-Optimierung sowie spezielle Loss-Funktionen zur besseren Erkennung kleiner Defekte \cite{applications_review}. 
+
+In der Informationssammlung wird zusätzlich SCS-YOLOv8 genannt, ein verbessertes YOLOv8n-Verfahren für Stahloberflächendefekte. Der dort notierte Versuch bezieht sich auf den NEU-DET-Datensatz mit sechs Defektklassen: Crazing, Inclusion, Patches, Pitted Surface, Rolled-in Scale und Scratches \cite{ersteinfos,scs_yolov8}. Für das eigene Projekt ist wichtig, dass dieser Ansatz zwar direkte Relevanz für Oberflächendefekte hat, aber primär auf Stahloberflächen bezogen ist. Die Übertragbarkeit auf Aluminium oder andere metallische Oberflächen muss experimentell überprüft werden.
+
+\subsection{Mögliche Probleme}
+
+YOLO ist attraktiv, wenn Echtzeitfähigkeit und einfache Integration wichtig sind. Für sehr feine Kratzer können Bounding Boxes aber ungenau sein, insbesondere wenn der Kratzer nur wenige Pixel breit ist. Zudem kann eine Bounding Box bei langen, dünnen Kratzern viel Hintergrund enthalten. Das erschwert die Auswertung der minimal detektierbaren Kratzergröße. Für eine wissenschaftlich saubere Evaluation sind daher zusätzliche Metriken oder Segmentierungsmasken hilfreich. Außerdem braucht YOLO annotierte Defekte; wenn kaum gelabelte Kratzerbilder vorliegen, ist die Datenbeschaffung ein erheblicher Aufwand.
+
+\section{Lösungsansatz 4: Zweistufige Detektion mit R-CNN, Faster R-CNN und Mask R-CNN}
+
+\subsection{Grundidee}
+
+R-CNN-basierte Verfahren sind zweistufige Detektoren. Im ersten Schritt werden Kandidatenregionen erzeugt, im zweiten Schritt werden diese Regionen klassifiziert und ihre Bounding Boxes verfeinert. Das Review beschreibt Faster R-CNN als klassischen zweistufigen Detektor mit Convolutional Layers, Region Proposal Network, RoI Pooling und Klassifikationsmodul \cite{applications_review}. Die Informationssammlung fasst zweistufige Algorithmen wie R-CNN und Faster R-CNN entsprechend als Verfahren zusammen, die interessante Regionen erzeugen und anschließend klassifizieren bzw. verfeinern \cite{ersteinfos}.
+
+Der Vorteil für Kratzererkennung liegt in der genaueren Behandlung lokaler Regionen. R-CNN-basierte Verfahren können bei kleinen oder schwer erkennbaren Defekten präziser sein als einfache einstufige Detektoren, weil sie Kandidatenregionen explizit weiterverarbeiten. Mask R-CNN erweitert diese Idee um Segmentierungsmasken und kann damit prinzipiell pixelnähere Defektvisualisierungen liefern.
+
+\subsection{Anpassungen für metallische Oberflächen}
+
+Das Review beschreibt mehrere Verbesserungen R-CNN-basierter Modelle für Metalloberflächendefekte. Beispiele sind verbesserte Anchor-Box-Auswahl, K-means++ zur Anpassung der Anchorgrößen, RoI Align zur Reduktion von Positionsfehlern, Dual-Feature-Pyramids, CIoU-basierte Kandidatenbewertung, deformierbare Faltungen sowie Hintergrundunterdrückung \cite{applications_review}. Zusammengefasst zielen diese Ansätze darauf ab, komplexe Hintergründe, variierende Defektgrößen und unterschiedliche Defektformen besser zu behandeln.
+
+Für das Projekt wäre Faster R-CNN eine starke Vergleichsmethode, wenn ausreichend Bounding-Box-Annotationen verfügbar sind. Mask R-CNN wäre besonders interessant, wenn pixelgenaue Kratzermasken erstellt oder aus einem Datensatz übernommen werden können. Dadurch könnten Kratzer nicht nur erkannt, sondern in ihrer Fläche bzw. Kontur visualisiert werden.
+
+\subsection{Mögliche Probleme}
+
+Der Hauptnachteil liegt in Rechenaufwand und Geschwindigkeit. Das Review hält fest, dass R-CNN-basierte Modelle im Vergleich zu YOLO im Allgemeinen höhere Rechenkosten und langsamere Detektionsgeschwindigkeiten aufweisen \cite{applications_review}. Für ein Echtzeit- oder Inline-Prüfsystem kann dies kritisch sein. Für ein Studienprojekt mit Offline-Auswertung kann R-CNN dagegen als Genauigkeitsbaseline sinnvoll sein, insbesondere um zu prüfen, ob der Geschwindigkeitsvorteil von YOLO mit messbaren Genauigkeitsverlusten einhergeht.
+
+\section{Lösungsansatz 5: Transformer- und Vision-Transformer-basierte Modelle}
+
+\subsection{Grundidee}
+
+Transformer nutzen Attention-Mechanismen, um Beziehungen zwischen Bildbereichen zu modellieren. Das Review beschreibt Vision Transformer (ViT) als CV-Variante des ursprünglichen Transformers: Ein Bild wird in Patches zerlegt, diese werden als Sequenz verarbeitet und über Encoder-Blöcke ausgewertet \cite{applications_review}. Dadurch kann ein Modell globale Zusammenhänge zwischen Bildregionen erfassen. Für Defekterkennung ist das relevant, wenn ein Kratzer nur im Kontext der Oberflächenstruktur, der Bearbeitungsspuren oder der erwarteten Bauteilform eindeutig erkennbar ist.
+
+Die bereitgestellte ViT-Arbeit untersucht, ob ein vortrainierter Vision Transformer als universeller Klassifikator für Metalldefekte dienen kann. Dazu wurden drei öffentlich verfügbare Defektdatensätze mit Metallgussprodukten, Metallkolben und Metallplatten kombiniert \cite{vit_thesis}. Das Ergebnis war, dass ein vortrainierter ViT mit SMOTE und Zusammenlegung zweier ähnlicher Klassen die besten Gesamtwerte erzielte: Precision 96\,\%, Recall 95\,\%, F1-Score 96\,\% und Accuracy 95\,\% \cite{vit_thesis}. Die Arbeit berichtet jedoch auch, dass ViT und CNN auf den Oberflächenplattenklassen schwächer abschnitten als auf Metallguss- und Kolbendaten \cite{vit_thesis}.
+
+\subsection{Nutzen für Kratzererkennung}
+
+Für Kratzererkennung kann ein ViT besonders dann interessant sein, wenn globale Kontextinformationen wichtig sind oder wenn verschiedene Metallprodukte mit einem gemeinsamen Modell behandelt werden sollen. Die ViT-Arbeit argumentiert, dass viele AOI-Anwendungen bisher auf einzelne Produkte oder einzelne Defektaufgaben zugeschnitten sind; ein generischeres Modell wäre für Hersteller mit mehreren Produkttypen vorteilhaft \cite{vit_thesis}. 
+
+Für ein Projekt mit begrenztem Datensatz ist Vortraining entscheidend. Die ViT-Arbeit weist darauf hin, dass ViTs im Durchschnitt mehr Trainingsdaten benötigen als CNNs und dass Transfer Learning deshalb verwendet wurde, um die negativen Effekte geringer Datenmengen zu reduzieren \cite{vit_thesis}. Daraus folgt: Ein ViT sollte im Projekt nicht unvortrainiert trainiert werden, sondern als vortrainiertes Modell oder hybrides CNN-Transformer-Modell getestet werden.
+
+\subsection{Varianten: Swin Transformer und DETR}
+
+Neben ViT nennt das Review Swin Transformer und DETR. Swin Transformer nutzt verschobene Fenster, um lokale und über Fenstergrenzen hinweg reichende Informationen effizienter zu modellieren. DETR ist ein end-to-end Transformer für Objektdetektion, der Bounding Boxes direkt über Objekt-Queries vorhersagt und damit ohne klassische Anchor-Setups auskommt \cite{applications_review}. 
+
+Das Review ordnet Transformer-basierte Modelle als leistungsfähig bei komplexen Defekten und schwachen Merkmalen ein, weist aber auch auf höhere Rechenkosten und langsamere Detektionsgeschwindigkeiten hin \cite{applications_review}. Für Kratzererkennung bedeutet dies: Transformer können eine sehr gute Forschungsrichtung sein, sind aber für ein robustes industrielles System nur dann praktikabel, wenn Modellgröße, Inferenzzeit und Datensatzgröße kontrolliert werden.
+
+\subsection{Mögliche Probleme}
+
+Transformer-Modelle sind datenhungriger und rechenintensiver als viele CNN- oder YOLO-Varianten. Bei kleinen Datensätzen besteht Overfitting-Gefahr. Außerdem kann eine reine Klassifikation mit ViT zwar gute Kennzahlen liefern, aber ohne Detektions- oder Segmentierungskopf keine präzise Kratzerposition visualisieren. Für das Projekt wäre deshalb ein ViT als Feature-Extractor, ein hybrides CNN-Transformer-Modell oder ein Transformer-basierter Detektor sinnvoller als reine Bildklassifikation, sofern Lokalisierung und Visualisierung im Vordergrund stehen.
+
+\section{Lösungsansatz 6: Feature-Pyramid- und Multi-Scale-Ansätze}
+
+\subsection{Grundidee}
+
+Oberflächendefekte können stark in Größe und Form variieren. Das Review beschreibt dies als zentrale Herausforderung: Defekte reichen von Mikro-Rissen bis zu großen Defektbereichen, besitzen oft unregelmäßige Formen und können schwache Kontraste zur Hintergrundtextur aufweisen \cite{applications_review}. Feature Pyramid Networks (FPN) adressieren dieses Problem, indem sie Merkmale aus verschiedenen Auflösungsstufen kombinieren. Hohe Netzwerkebenen liefern semantisch reichere Informationen, niedrige Ebenen erhalten feinere räumliche Details.
+
+\subsection{Relevanz für kleine Kratzer}
+
+Für Kratzer ist Multi-Scale-Verarbeitung besonders wichtig. Ein langer Kratzer kann global auffällig sein, während seine Breite lokal sehr klein ist. Ein Modell muss daher gleichzeitig feine lokale Kanten und größere geometrische Ausdehnung erfassen. Das Review beschreibt FPN und abgeleitete Pyramidenstrukturen als weit verbreitete Bildverarbeitungstechnik für Defekterkennung mit unterschiedlich großen Zielobjekten \cite{applications_review}. 
+
+Im Projekt kann Multi-Scale-Verarbeitung auf mehreren Ebenen umgesetzt werden: durch Bildpyramiden, durch FPN im Detektor, durch Patchgrößen verschiedener Skalierung oder durch Kombination von Übersichtsbild und hochauflösenden lokalen Ausschnitten. Besonders sinnvoll erscheint eine Kombination aus hochauflösender Patch-Verarbeitung und FPN-basiertem Detektor oder Segmentierer.
+
+\subsection{Mögliche Probleme}
+
+Multi-Scale-Verarbeitung erhöht meistens Rechenaufwand und Modellkomplexität. Das Review beschreibt bei YOLO-basierten Verbesserungen einen klaren Trade-off: Multi-Scale-Fusion und zusätzliche Knoten können Genauigkeit verbessern, führen aber zu größerer Modellgröße und höherer Komplexität \cite{applications_review}. Für das eigene System muss daher entschieden werden, ob Echtzeitfähigkeit oder maximale Sensitivität für sehr kleine Kratzer wichtiger ist.
+
+\section{Lösungsansatz 7: Unüberwachte Anomalieerkennung mit EfficientAD}
+
+\subsection{Grundidee}
+
+In industriellen Prüfaufgaben sind defekte Beispiele oft selten, unvollständig oder nicht repräsentativ für alle zukünftigen Fehler. Unüberwachte Anomalieerkennung trainiert deshalb häufig nur auf fehlerfreien Bildern und erkennt Abweichungen zur Normalität. EfficientAD ist ein aktueller Ansatz für schnelle visuelle Anomalieerkennung. Das Paper beschreibt eine Kombination aus leichtgewichtigem Feature-Extractor, Student-Teacher-Modell und Autoencoder für logische Anomalien \cite{efficientad}. 
+
+Beim Student-Teacher-Prinzip lernt ein Student-Netzwerk, die Merkmale eines vortrainierten Teacher-Netzwerks auf normalen Bildern vorherzusagen. Bei anomalien Bildern weichen die Student- und Teacher-Ausgaben stärker voneinander ab, wodurch eine Anomaly Map entsteht \cite{efficientad}. EfficientAD ergänzt dies um eine Trainings-Loss, die den Student daran hindert, den Teacher außerhalb der normalen Trainingsbilder zu gut zu imitieren \cite{efficientad}. Zusätzlich nutzt EfficientAD einen Autoencoder, um globale bzw. logische Anomalien zu erkennen, also beispielsweise falsche Anordnungen normaler lokaler Bestandteile \cite{efficientad}.
+
+\subsection{Leistung und Echtzeitfähigkeit}
+
+EfficientAD ist besonders interessant, weil es sowohl hohe Detektionsleistung als auch sehr niedrige Latenz berichtet. Das Paper nennt für EfficientAD-S eine Latenz von 2{,}2\,ms und einen Durchsatz von 614 Bildern/s; EfficientAD-M erreicht 4{,}5\,ms und 269 Bilder/s. Gleichzeitig werden auf MVTec AD, VisA und MVTec LOCO hohe AU-ROC- und AU-PRO-Werte berichtet \cite{efficientad_results}. Das Paper betont außerdem, dass EfficientAD auf 32 Szenarien aus drei industriellen Anomalie-Datensatzsammlungen evaluiert wurde \cite{efficientad}. 
+
+Für das Projekt ist dieser Ansatz sehr relevant, wenn nur wenige oder keine gelabelten Kratzerbilder verfügbar sind. Man könnte zunächst gute, kratzerfreie Oberflächen aufnehmen, EfficientAD auf Normalbildern trainieren und Kratzer anschließend als lokale strukturelle Anomalien detektieren. Die resultierende Anomaly Map ist zugleich eine Form der Visualisierung.
+
+\subsection{Mögliche Probleme}
+
+Unüberwachte Anomalieerkennung erkennt Abweichungen, aber nicht automatisch die semantische Klasse \enquote{Kratzer}. Flecken, Staub, Beleuchtungsänderungen oder Bearbeitungsspuren können ebenfalls als Anomalie erscheinen. Daher muss die Aufnahmeumgebung sehr stabil sein, und die Normaldaten müssen die erlaubte Varianz der Oberfläche ausreichend abdecken. EfficientAD selbst weist außerdem darauf hin, dass sehr feingranulare logische Anomalien weiterhin schwierig bleiben und dass der Ansatz im Unterschied zu kNN-basierten Methoden Training benötigt \cite{efficientad_results}. Für das Projekt sollte EfficientAD deshalb mit gezielter Nachverarbeitung kombiniert werden, etwa Größenfilterung, Formfilterung für längliche Strukturen oder Vergleich verschiedener Beleuchtungen.
+
+\section{Datensätze}
+
+\subsection{Überblick}
+
+Datensätze bestimmen wesentlich, welche Modellarten realistisch trainiert und evaluiert werden können. Für Kratzererkennung sind insbesondere folgende Eigenschaften relevant: Materialart, Defekttypen, Bildauflösung, Annotationstyp, Anteil kleiner Defekte, Klassenungleichgewicht und Nähe zu realen industriellen Aufnahmebedingungen. Das Review betont, dass Unterschiede zwischen akademischen und industriellen Datensätzen eine Lücke erzeugen können, weil industrielle Daten komplexere Verteilungen und Aufnahmebedingungen besitzen \cite{applications_review}.
+
+\begin{longtable}{p{0.18\textwidth}p{0.21\textwidth}p{0.16\textwidth}p{0.18\textwidth}p{0.18\textwidth}}
+\caption{Relevante Datensätze für Metalloberflächen- und Defekterkennung.}\\
+\toprule
+\textbf{Datensatz} & \textbf{Inhalt / Defekte} & \textbf{Größe / Klassen} & \textbf{Annotation} & \textbf{Relevanz für Projekt}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Datensatz} & \textbf{Inhalt / Defekte} & \textbf{Größe / Klassen} & \textbf{Annotation} & \textbf{Relevanz für Projekt}\\
+\midrule
+\endhead
+NEU-DET & Hot-rolled steel strip surface defects; u.\,a. Crazing, Inclusion, Patches, Pitted Surface, Rolled-in Scale, Scratches & 1800 Bilder, 6 Klassen & Bounding Boxes & Standarddatensatz für Metalloberflächen; enthält explizit Scratches, aber Materialbezug Stahl \cite{applications_review,ersteinfos}.\\
+GC10-DET & Stahlplatten-Oberflächendefekte aus realer industrieller Produktion & 2294 Bilder nach Datenbereinigung, 10 Klassen & Bounding Boxes & Wegen realer Produktionsdaten und hoher Auflösung relevant für kleine Defekte; laut Review starke Klassenimbalance \cite{applications_review}.\\
+Tianchi Aluminum Surface Defect Dataset & Aluminiumprofil-Oberflächendefekte & 2776 Bilder, 10 Klassen & Bounding Boxes & Besonders relevant, falls das eigene Projekt Aluminiumoberflächen betrachtet; hohe Auflösung und realer industrieller Ursprung \cite{applications_review}.\\
+X-SDD & Hot-rolled steel strip surface defects & 1360 Bilder, 7 Klassen & Bounding Boxes & Ergänzender Stahloberflächen-Datensatz für Detektionsmodelle \cite{applications_review}.\\
+RSDDs & Schienenoberflächendefekte & 195 Bilder & Bounding Boxes & Kleiner spezialisierter Datensatz; bedingt übertragbar auf allgemeine Metalloberflächen \cite{applications_review}.\\
+MVTec AD & Industrielle Anomalieerkennung mit 15 Inspektionsszenarien & Mehrere Objekt- und Texturkategorien & Pixelgenaue Masken für Testanomalien & Sehr relevant für unüberwachte Anomalieerkennung und Segmentierungsauswertung, allerdings nicht spezifisch nur Metallkratzer \cite{efficientad}.\\
+VisA & Industrielle visuelle Anomalieerkennung & 12 Szenarien & Pixelgenaue Masken & Von EfficientAD zur Benchmark-Evaluation genutzt; enthält anspruchsvollere Anomalien als klassische Setups \cite{efficientad}.\\
+MVTec LOCO & Logische und strukturelle industrielle Anomalien & 5 Szenarien & Pixelgenaue Masken & Relevant, wenn nicht nur lokale Kratzer, sondern auch globale Plausibilitätsverletzungen betrachtet werden \cite{efficientad}.\\
+KolektorSDD / KolektorSDD2 & Sehr feine Kratzer auf industriellen Bauteilen & In der bereitgestellten Notiz nicht näher quantifiziert & Pixelgenaue Masken & Wegen feiner Kratzer und Segmentierungsmasken besonders interessant für Kratzersegmentierung \cite{ersteinfos}.\\
+DAGM 2007 & Defekte auf verschiedenen Texturen & In der bereitgestellten Notiz nicht näher quantifiziert & Defektbezogene Annotationen je nach Aufgabe & Nützlich als allgemeiner Texturdefekt-Datensatz, aber nicht metall- oder kratzer-spezifisch \cite{ersteinfos}.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Bewertung der Datensätze für das eigene Projekt}
+
+Für ein System zur Kratzererkennung auf metallischen Oberflächen sind NEU-DET und Tianchi Aluminum Surface Defect Dataset besonders naheliegend, wenn Bounding-Box-Detektion mit YOLO oder Faster R-CNN getestet werden soll. NEU-DET enthält explizit die Klasse \enquote{Scratches}, ist aber auf Stahloberflächen bezogen \cite{ersteinfos,applications_review}. Tianchi ist wegen Aluminiumprofilen interessant, sofern die eigenen Prüflinge ebenfalls Aluminium oder ähnliche Profile betreffen \cite{applications_review}. 
+
+Für Segmentierung und Visualisierung sind KolektorSDD/KolektorSDD2 und MVTec-ähnliche Datensätze besonders relevant, weil pixelgenaue Masken bzw. Anomaly Maps besser zu einer visuellen Darstellung der Kratzer passen. Wenn im eigenen Projekt nur wenige defekte Beispiele gesammelt werden können, sind MVTec AD, VisA und MVTec LOCO als Benchmark- und Methodenreferenz für Anomalieerkennung wichtiger als als direktes Trainingmaterial.
+
+\section{Abgeleitete Anforderungen an das eigene System}
+
+\subsection{Anforderungen an Bildaufnahme und Prüfaufbau}
+
+\begin{enumerate}
+    \item \textbf{Kontrollierte Beleuchtung:} Das System sollte eine reproduzierbare Beleuchtung besitzen. SFS-ähnliche Mehrfachbeleuchtung ist besonders interessant, weil Kratzer und Krümmungsunterschiede dadurch stärker hervortreten können \cite{ersteinfos}.
+    \item \textbf{Ausreichende Kameraauflösung:} Da die Projektaufgabe fordert, die minimal prozesssicher detektierbare Kratzergröße zu bestimmen, muss die Pixelauflösung zur Zielgröße passen \cite{projektaufgabe}. Wenn Defekte unter \SI{1}{\milli\metre} erkannt werden sollen, muss die Abbildungsmaßstab-Planung vor dem Modelltraining erfolgen.
+    \item \textbf{Stabile Geometrie:} Abstand, Winkel, Fokus und Bauteillage sollten konstant sein. Gerade SFS und Anomalieerkennung reagieren empfindlich auf systematische Änderungen der Aufnahmebedingungen.
+    \item \textbf{Patch- oder Multi-Scale-Aufnahme:} Bei großen Bauteilen und kleinen Defekten sollte das Bild in überlappende Patches zerlegt oder multi-skaliert verarbeitet werden \cite{ersteinfos,applications_review}.
+\end{enumerate}
+
+\subsection{Anforderungen an Daten und Annotation}
+
+\begin{enumerate}
+    \item \textbf{Eigener Testdatensatz:} Öffentliche Datensätze sind wertvoll für Vortraining und Vergleich, ersetzen aber keine eigenen Bilder der realen Zieloberfläche. Das Review weist auf Unterschiede zwischen akademischen und industriellen Daten hin \cite{applications_review}.
+    \item \textbf{Annotation passend zur Methode:} Für YOLO/Faster R-CNN sind Bounding Boxes nötig; für Mask R-CNN oder U-Net-artige Segmentierung sind Masken erforderlich; für EfficientAD reichen zunächst Normalbilder, aber defekte Testbilder mit Masken sind für quantitative Evaluation hilfreich.
+    \item \textbf{Klassenungleichgewicht berücksichtigen:} Die ViT-Arbeit zeigt, dass Imbalance relevant ist und dass SMOTE sowie Zusammenlegung ähnlicher Klassen die Ergebnisse verbessern können \cite{vit_thesis}. Für Kratzererkennung sollte die Verteilung von \enquote{kein Defekt}, \enquote{leichter Kratzer}, \enquote{starker Kratzer} und anderen Störungen kontrolliert werden.
+    \item \textbf{Dokumentierte Störfälle:} Flecken, Staub, Reflexionen und Bearbeitungsspuren sollten bewusst erfasst werden, da sie in der Praxis false positives verursachen können.
+\end{enumerate}
+
+\subsection{Anforderungen an Modellwahl und Pipeline}
+
+\begin{enumerate}
+    \item \textbf{Baseline definieren:} Ein einfaches CNN oder ein vortrainiertes Klassifikationsmodell sollte als Mindestbaseline dienen.
+    \item \textbf{Detektionsmodell für Visualisierung:} Da das finale System Kratzer erkennen und visualisieren soll, sind YOLO, Faster R-CNN, Mask R-CNN oder Anomaly-Map-Verfahren besser geeignet als reine Bildklassifikation \cite{projektaufgabe}.
+    \item \textbf{Echtzeitfähigkeit prüfen:} YOLO ist naheliegend, wenn schnelle Online-Inspektion wichtig ist \cite{applications_review}. EfficientAD ist relevant, wenn Anomalieerkennung mit sehr niedriger Latenz benötigt wird \cite{efficientad_results}.
+    \item \textbf{Multi-Scale-Fähigkeit sicherstellen:} Kleine und lange Kratzer erfordern Feature-Pyramids, Patch-Verarbeitung oder hohe Eingangsauflösung \cite{applications_review}.
+    \item \textbf{Interpretierbare Ausgabe:} Das System sollte Bounding Boxes, Segmentierungsmasken oder Anomaly Maps ausgeben, nicht nur ein Klassifikationslabel.
+\end{enumerate}
+
+\subsection{Anforderungen an Evaluation}
+
+\begin{enumerate}
+    \item \textbf{Recall priorisieren:} Die ViT-Arbeit betont für AOI-Anwendungen die Bedeutung von Recall, weil echte Defekte nicht übersehen werden sollen \cite{vit_thesis}. Gleichzeitig muss Precision beobachtet werden, um zu viele Fehlalarme zu vermeiden.
+    \item \textbf{Detektionsmetriken verwenden:} Für Bounding-Box-Modelle sind AP/mAP und FPS relevant. Das Review beschreibt AP als Fläche unter der Precision-Recall-Kurve, mAP als Mittelwert über Klassen und FPS als Maß für Echtzeitfähigkeit \cite{applications_review}.
+    \item \textbf{Segmentierungsmetriken ergänzen:} Für Masken oder Anomaly Maps sollten pixelbasierte Metriken genutzt werden, z.\,B. AU-PRO oder pixelbasierte IoU. EfficientAD berichtet neben AU-ROC auch AU-PRO zur Lokalisation \cite{efficientad_results}.
+    \item \textbf{Minimal detektierbare Kratzergröße messen:} Das Projektziel verlangt explizit die Evaluation der minimal prozesssicher detektierbaren Kratzergröße \cite{projektaufgabe}. Dafür sollten Testkörper oder synthetisch/real abgestufte Kratzergrößen definiert werden.
+    \item \textbf{Robustheit gegen Beleuchtungs- und Oberflächenvariation testen:} Da metallische Reflexionen eine Kernherausforderung darstellen, sollten Testdaten unterschiedliche, aber realistische Licht- und Oberflächenzustände enthalten \cite{projektaufgabe}.
+\end{enumerate}
+
+\section{Vergleich der Lösungsansätze}
+
+\begin{longtable}{p{0.18\textwidth}p{0.23\textwidth}p{0.23\textwidth}p{0.26\textwidth}}
+\caption{Kurzvergleich der betrachteten Ansätze.}\\
+\toprule
+\textbf{Ansatz} & \textbf{Stärken} & \textbf{Schwächen} & \textbf{Eignung für Projekt}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Ansatz} & \textbf{Stärken} & \textbf{Schwächen} & \textbf{Eignung für Projekt}\\
+\midrule
+\endhead
+Shape-from-Shading & Verbessert Sichtbarkeit geometrischer Defekte; nutzt physikalische Information; hilfreich bei Reflexionsproblemen & Benötigt kontrollierte Mehrfachbeleuchtung und Kalibrierung; abhängig von Material und Setup & Sehr sinnvoll als Bildaufnahme-/Vorverarbeitungskonzept, besonders kombiniert mit ML \cite{ersteinfos}.\\
+CNN-Klassifikation & Einfacher Einstieg; gute Baseline; Transfer Learning möglich & Keine genaue Lokalisierung; kleine Kratzer können im Downsampling verloren gehen & Gut als Baseline, aber allein nicht ausreichend für Visualisierung.\\
+YOLO & Schnell, deploymentfreundlich, geeignet für Echtzeit; liefert Bounding Boxes & Sehr kleine/lange Kratzer schwer; benötigt Box-Annotationen; Boxen sind grob & Starker Kandidat für ersten Prototyp mit Visualisierung \cite{applications_review}.\\
+Faster/Mask R-CNN & Präzisere Regionsverarbeitung; Mask R-CNN kann segmentieren & Langsamer und rechenintensiver; mehr Annotation nötig & Gut als Genauigkeitsvergleich oder wenn Echtzeit weniger wichtig ist \cite{applications_review}.\\
+Transformer/ViT/DETR & Globale Kontextmodellierung; stark bei komplexen Hintergründen und schwachen Merkmalen & Daten- und rechenintensiv; kleine Datensätze problematisch; teils langsamer & Interessant als fortgeschrittener Vergleich, besonders mit Vortraining \cite{vit_thesis,applications_review}.\\
+FPN/Multi-Scale & Wichtig für kleine und unterschiedlich große Defekte; in viele Detektoren integrierbar & Erhöht Komplexität und Rechenaufwand & Sollte unabhängig vom Hauptmodell berücksichtigt werden \cite{applications_review}.\\
+EfficientAD & Training mit Normalbildern möglich; schnelle Inferenz; Anomaly Maps zur Visualisierung & Erkennt Anomalien, nicht automatisch \enquote{Kratzer}; empfindlich gegenüber nicht repräsentativen Normaldaten & Sehr geeignet, wenn wenige Defektlabels vorliegen; guter Kandidat neben YOLO \cite{efficientad}.\\
+\bottomrule
+\end{longtable}
+
+\section{Empfohlene Projektstrategie}
+
+Aus den betrachteten Quellen ergibt sich eine pragmatische Strategie: Zuerst sollte ein reproduzierbares Prüfsetup mit stabiler Beleuchtung aufgebaut werden. Wenn möglich, sollte eine Mehrfachbeleuchtung oder SFS-nahe Aufnahme geprüft werden, weil die Metallreflexionen ein zentrales Problem darstellen \cite{ersteinfos,projektaufgabe}. Parallel sollte ein eigener kleiner Datensatz mit Normalbildern, Kratzern und typischen Störfällen aufgebaut werden.
+
+Als erste ML-Baseline empfiehlt sich ein patchbasierter CNN- oder YOLO-Ansatz. YOLO liefert schnell sichtbare Bounding-Box-Ergebnisse und eignet sich gut für eine erste Visualisierung. Wenn nur wenige Defektlabels vorhanden sind, sollte EfficientAD früh getestet werden, weil es auf Normaldaten trainiert werden kann und eine Anomaly Map erzeugt \cite{efficientad}. Für eine vertiefte wissenschaftliche Bewertung können Faster/Mask R-CNN und ein vortrainierter ViT bzw. ein hybrider Transformer-Ansatz als Vergleich ergänzt werden. Die finale Bewertung sollte Recall, Precision, mAP bzw. AU-ROC/AU-PRO, FPS und insbesondere die minimal zuverlässig erkennbare Kratzergröße enthalten \cite{projektaufgabe,applications_review,vit_thesis}.
+
+\section{Fazit}
+
+Der aktuelle Stand der Technik zeigt keine einzelne universell beste Lösung für optische Kratzererkennung auf metallischen Oberflächen. Die stärkste Systemlösung entsteht wahrscheinlich aus der Kombination eines kontrollierten optischen Setups, ausreichend hoher Auflösung, Patch- bzw. Multi-Scale-Verarbeitung und einem passenden ML-Modell. YOLO ist der naheliegende Echtzeit- und Prototyping-Kandidat, R-CNN/Mask R-CNN eignet sich als präzisere Vergleichsmethode, Transformer-Modelle sind vor allem für komplexe Kontextfälle und größere Datenmengen interessant, und EfficientAD ist besonders attraktiv bei wenigen Defektlabels. Shape-from-Shading ist kein Konkurrenzmodell zu Deep Learning, sondern kann als physikalisch fundierte Vorverarbeitung die Sichtbarkeit echter Kratzer verbessern und Störstrukturen reduzieren.
+
+\newpage
+\begin{thebibliography}{99}
+
+\bibitem{projektaufgabe}
+Hochschule Karlsruhe, Aufgabenstellung Projektarbeit: \emph{Entwickeln einer optischen Kratzererkennung auf metallischen Oberflächen}, bereitgestellte PDF-Datei \texttt{26ss\_BH\_KratzerDetektion-1.pdf}, SS 2026.
+
+\bibitem{ersteinfos}
+Bereitgestellte Markdown-Datei \texttt{Erste\_Informationssammlung.md}: Sammlung zu Shape-from-Shading, KI-basierter Oberflächenkontrolle, SCS-YOLOv8 und Datensätzen.
+
+\bibitem{sfs_rh}
+RH Engineering, \emph{Innovative Oberflächenkontrolle: Shape-from-Shading \& KI in der Praxis}. URL: \url{https://rhengineering.de/innovative-oberflaechenkontrolle-shape-from-shading-ki-in-der-praxis/}
+
+\bibitem{sfs_paper}
+Paper-Link aus der Informationssammlung: \emph{Surface inspection system for industrial components based on shape from shading minimization approach}. URL: \url{https://www.spiedigitallibrary.org/journals/optical-engineering/volume-56/issue-12/123105/Surface-inspection-system-for-industrial-components-based-on-shape-from/10.1117/1.OE.56.12.123105.full}
+
+\bibitem{applications_review}
+Y. Wang, M. Zhou, C. Zhang und K. Sedraoui, \emph{Applications of Deep Learning to Metal Surface Defect Detection: Status and Challenges}, Processes, 2026. Bereitgestellte PDF-Datei \texttt{Applications\_2026.pdf}. DOI/URL laut Datei: \url{https://doi.org/10.3390/pr14081305}
+
+\bibitem{vit_thesis}
+V. Engeln, \emph{Defect detection in metal objects using a pre-trained Vision Transformer model}, Master Thesis, Tilburg University, 2022. Bereitgestellte PDF-Datei \texttt{Vision\_Transformer.pdf}.
+
+\bibitem{efficientad}
+K. Batzner, L. Heckler und R. König, \emph{EfficientAD: Accurate Visual Anomaly Detection at Millisecond-Level Latencies}, arXiv:2303.14535v3, 2024. Bereitgestellte PDF-Datei \texttt{Anomaly\_Detection.pdf}.
+
+\bibitem{efficientad_results}
+K. Batzner, L. Heckler und R. König, \emph{EfficientAD: Accurate Visual Anomaly Detection at Millisecond-Level Latencies}, Ergebnis- und Ablationstabellen in der bereitgestellten PDF-Datei \texttt{Anomaly\_Detection.pdf}.
+
+\bibitem{scs_yolov8}
+Paper-Link aus der Informationssammlung: \emph{SCS-YOLOv8: steel surface defect detection algorithm based on improved YOLOv8n}. URL: \url{https://www.spiedigitallibrary.org/conference-proceedings-of-spie/13993/139932R/SCS-YOLOv8--steel-surface-defect-detection-algorithm-based-on/10.1117/12.3092194.full}
+
+\bibitem{weak_scratch_pubmed}
+Paper-Link aus der Informationssammlung: \emph{Surface weak scratch detection for optical elements based on a multimodal imaging system and a deep encoder-decoder network}. URL: \url{https://pubmed.ncbi.nlm.nih.gov/37706778/}
+
+\end{thebibliography}
+
+\end{document}
