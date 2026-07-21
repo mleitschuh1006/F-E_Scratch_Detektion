@@ -1,0 +1,12 @@
+camera:
+  AcquisitionMode: "Continuous"
+  TriggerMode: "Off"
+  PixelFormat: "BayerRG8"
+
+  ExposureAuto: "Off"
+  ExposureTime: 30000.0
+
+  GainAuto: "Off"
+  Gain: 0.0
+
+  BalanceWhiteAuto: "Off"
