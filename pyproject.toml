@@ -1,0 +1,19 @@
+[project]
+name = "f-e-scratch-detection"
+version = "0.1.0"
+description = "Pixel-accurate local scratch annotation and detection tooling"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "opencv-python>=4.8",
+    "pillow>=10.0",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+scratch-annotator = "annotation.scratch_annotator:main"
+
+[tool.pytest.ini_options]
+testpaths = ["annotation/tests"]
+pythonpath = ["."]

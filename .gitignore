@@ -1,1 +1,9 @@
 *.bmp
+*.jpg
+*.jpeg
+*.png
+data/images/
+
+# Erlaube aber PNGs in den Annotations-Ordnern
+!data/annotations_manual/**/*.png
+!data/annotations_auto/**/*.png

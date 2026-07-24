@@ -1,0 +1,17 @@
+# Input/output folders relative to this annotation/ directory.
+images_dir: images
+annotations_dir: annotations
+masks_dir: masks
+
+# Agreed annotation guidelines.
+max_annotation_zoom: 5.0
+min_scratch_length_px: 35.0
+
+# Drawing defaults. The width is always the final total mask width.
+default_width_px: 5
+min_width_px: 1
+max_width_px: 60
+
+# Display only. This does not alter image or mask pixels.
+overlay_opacity: 0.45
+overlay_rgb: [255, 40, 40]
