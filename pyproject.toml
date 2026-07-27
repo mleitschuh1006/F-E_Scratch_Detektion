@@ -9,6 +9,7 @@ dependencies = [
     "opencv-python>=4.8",
     "pillow>=10.0",
     "pyyaml>=6.0",
+    "scikit-learn>=1.7.2",
 ]
 
 [project.scripts]
