@@ -4,8 +4,8 @@ annotations_dir: annotations
 masks_dir: masks
 
 # Agreed annotation guidelines.
-max_annotation_zoom: 5.0
-min_scratch_length_px: 35.0
+max_annotation_zoom: 50.0
+min_scratch_length_px: 1.0
 
 # Drawing defaults. The width is always the final total mask width.
 default_width_px: 5

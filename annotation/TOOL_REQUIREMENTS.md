@@ -95,7 +95,7 @@ den aktualisierten Masterstand.
 ### 6.1 Maximale Zoomstufe
 
 Die maximal erlaubte Zoomstufe während einer Annotationsänderung beträgt
-**5-fach**.
+**50-fach**.
 
 Reines Hineinzoomen zur Kontrolle erzeugt keine Ausnahme. Eine Ausnahme wird
 registriert, wenn oberhalb von 5× beispielsweise:
@@ -111,7 +111,7 @@ Ausnahme muss vor Abschluss des Bildes explizit akzeptiert werden.
 
 ### 6.2 Mindestgröße
 
-Die Mindestlänge eines Kratzers beträgt **35 Originalpixel**. Maßgeblich ist die
+Die Mindestlänge eines Kratzers beträgt **1 Originalpixel**. Maßgeblich ist die
 geometrische Länge der Mittellinie, nicht die Fläche der aufgedickten Maske.
 
 Ein kürzerer Kratzer wird orange markiert und muss explizit als gültiger Kratzer
