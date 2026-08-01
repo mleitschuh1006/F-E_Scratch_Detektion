@@ -269,6 +269,7 @@ def ensure_slave(project: dict[str, Any], slave_filename: str) -> dict[str, Any]
             "added_strokes": [],
             "hidden_base_ids": [],
             "erase_rects": [],
+            "edit_operations": [],
             "clear_base": False,
             "zoom_erase_violation": False,
             "accepted_zoom_erase": False,
@@ -283,6 +284,58 @@ def ensure_slave(project: dict[str, Any], slave_filename: str) -> dict[str, Any]
     state.setdefault("added_strokes", [])
     state.setdefault("hidden_base_ids", [])
     state.setdefault("erase_rects", [])
+
+    # Older project files stored added strokes and erase rectangles separately.
+    # Their effective order was: all strokes first, then all erase rectangles.
+    # Preserve that exact result once, while allowing future draw/erase actions
+    # to be replayed chronologically. This prevents a historic erase rectangle
+    # from clipping a new scratch drawn afterwards.
+    if "edit_operations" not in state:
+        operations: list[dict[str, Any]] = [
+            {"type": "add_stroke", "stroke_id": str(stroke.get("id", ""))}
+            for stroke in state.get("added_strokes", [])
+            if stroke.get("id")
+        ]
+        operations.extend(
+            {"type": "erase_rect", "rect": list(rect)}
+            for rect in state.get("erase_rects", [])
+            if isinstance(rect, (list, tuple)) and len(rect) == 4
+        )
+        state["edit_operations"] = operations
+    elif not isinstance(state.get("edit_operations"), list):
+        state["edit_operations"] = []
+
+    # Keep manually edited or partially migrated JSON files usable. Missing
+    # stroke operations are inserted first and missing erase operations last,
+    # which reproduces the rendering semantics of the original project format.
+    operations = state["edit_operations"]
+    referenced_stroke_ids = {
+        str(operation.get("stroke_id", ""))
+        for operation in operations
+        if isinstance(operation, dict) and operation.get("type") == "add_stroke"
+    }
+    for stroke in state.get("added_strokes", []):
+        stroke_id = str(stroke.get("id", ""))
+        if stroke_id and stroke_id not in referenced_stroke_ids:
+            operations.append({"type": "add_stroke", "stroke_id": stroke_id})
+            referenced_stroke_ids.add(stroke_id)
+
+    unmatched_operation_rects = [
+        tuple(operation.get("rect", []))
+        for operation in operations
+        if isinstance(operation, dict)
+        and operation.get("type") == "erase_rect"
+        and len(operation.get("rect", [])) == 4
+    ]
+    for rect in state.get("erase_rects", []):
+        if not isinstance(rect, (list, tuple)) or len(rect) != 4:
+            continue
+        rect_tuple = tuple(rect)
+        if rect_tuple in unmatched_operation_rects:
+            unmatched_operation_rects.remove(rect_tuple)
+        else:
+            operations.append({"type": "erase_rect", "rect": list(rect)})
+
     state.setdefault("clear_base", False)
     state.setdefault("zoom_erase_violation", False)
     state.setdefault("accepted_zoom_erase", False)
@@ -379,25 +432,72 @@ def _draw_stroke(mask: np.ndarray, stroke: dict[str, Any]) -> None:
     )
 
 
+def _erase_mask_rectangle(
+    mask: np.ndarray, rect: Iterable[float], width: int, height: int
+) -> None:
+    """Erase one rectangular image-coordinate area from ``mask`` in-place."""
+
+    values = list(rect)
+    if len(values) != 4:
+        return
+    x1, y1, x2, y2 = map(float, values)
+    left = max(0, min(width - 1, int(math.floor(min(x1, x2)))))
+    right = max(0, min(width - 1, int(math.ceil(max(x1, x2)))))
+    top = max(0, min(height - 1, int(math.floor(min(y1, y2)))))
+    bottom = max(0, min(height - 1, int(math.ceil(max(y1, y2)))))
+    mask[top : bottom + 1, left : right + 1] = 0
+
+
 def render_mask(project: dict[str, Any], image_filename: str) -> np.ndarray:
-    """Rasterize the current image annotation to a binary uint8 mask."""
+    """Rasterize the current image annotation to a binary uint8 mask.
+
+    Slave edits are replayed in their original order. Therefore, a rectangle
+    erases only annotations that already existed when the rectangle was drawn;
+    a new scratch added afterwards remains visible inside that former area.
+    """
 
     width, height = map(int, project["image_size"])
     mask = np.zeros((height, width), dtype=np.uint8)
-    for _, stroke in current_strokes(project, image_filename):
-        _draw_stroke(mask, stroke)
 
-    if image_filename != project["master_file"]:
+    if image_filename == project["master_file"]:
+        for stroke in project["master"].get("strokes", []):
+            _draw_stroke(mask, stroke)
+    else:
         state = ensure_slave(project, image_filename)
-        for rect in state.get("erase_rects", []):
-            if len(rect) != 4:
+        hidden = set(state.get("hidden_base_ids", []))
+
+        if not state.get("clear_base", False):
+            for stroke in state.get("base_strokes", []):
+                if stroke.get("id") not in hidden:
+                    _draw_stroke(mask, stroke)
+
+        added_by_id = {
+            str(stroke.get("id")): stroke
+            for stroke in state.get("added_strokes", [])
+            if stroke.get("id")
+        }
+        drawn_added_ids: set[str] = set()
+
+        for operation in state.get("edit_operations", []):
+            if not isinstance(operation, dict):
                 continue
-            x1, y1, x2, y2 = map(float, rect)
-            left = max(0, min(width - 1, int(math.floor(min(x1, x2)))))
-            right = max(0, min(width - 1, int(math.ceil(max(x1, x2)))))
-            top = max(0, min(height - 1, int(math.floor(min(y1, y2)))))
-            bottom = max(0, min(height - 1, int(math.ceil(max(y1, y2)))))
-            mask[top : bottom + 1, left : right + 1] = 0
+            operation_type = operation.get("type")
+            if operation_type == "add_stroke":
+                stroke_id = str(operation.get("stroke_id", ""))
+                stroke = added_by_id.get(stroke_id)
+                if stroke is not None:
+                    _draw_stroke(mask, stroke)
+                    drawn_added_ids.add(stroke_id)
+            elif operation_type == "erase_rect":
+                _erase_mask_rectangle(
+                    mask, operation.get("rect", []), width, height
+                )
+
+        # Defensive compatibility for manually edited or partially migrated
+        # project JSON files: do not silently lose an unreferenced added stroke.
+        for stroke_id, stroke in added_by_id.items():
+            if stroke_id not in drawn_added_ids:
+                _draw_stroke(mask, stroke)
 
     # Defensive final binarization: no antialiasing or intermediate grey values.
     return np.where(mask > 0, 255, 0).astype(np.uint8)

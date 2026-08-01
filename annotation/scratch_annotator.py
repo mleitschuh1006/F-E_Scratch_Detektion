@@ -676,7 +676,7 @@ class ScratchAnnotatorApp:
     def load_series(self, series_id: str) -> None:
         if not series_id:
             return
-        self.save_project_only(silent=True)
+        self.save_current(silent=True)
         series = self.series_map[series_id]
         project_path = self.annotations_dir / f"{series.series_id}.json"
         self.project = load_project(project_path, series, self.config)
@@ -698,7 +698,7 @@ class ScratchAnnotatorApp:
     def load_image(self, filename: str) -> None:
         if self.current_series is None or self.project is None:
             return
-        self.save_project_only(silent=True)
+        self.save_current(silent=True)
         self.cancel_current_action()
         path = self.image_path(filename)
         with Image.open(path) as loaded:
@@ -878,7 +878,11 @@ class ScratchAnnotatorApp:
     def mark_dirty_and_save(self) -> None:
         self.mask_dirty = True
         self.current_mask = None
-        self.save_project_only(silent=True)
+        # JSON and the corresponding PNG mask are kept in sync after every
+        # completed edit. This prevents valid annotations from existing only
+        # in the editable JSON project when the user changes images or closes
+        # the application without pressing the manual save button.
+        self.save_current(silent=True)
         self.refresh_image_list(select_filename=self.current_filename)
         self.update_ui_state()
         self.render_all()
@@ -918,6 +922,9 @@ class ScratchAnnotatorApp:
         else:
             state = ensure_slave(self.project, self.current_filename)
             state["added_strokes"].append(stroke)
+            state["edit_operations"].append(
+                {"type": "add_stroke", "stroke_id": stroke["id"]}
+            )
             mark_slave_modified(self.project, state)
         self.mark_current_in_progress()
         self.current_polyline = []
@@ -1076,9 +1083,9 @@ class ScratchAnnotatorApp:
             return
         self.record_undo()
         state = ensure_slave(self.project, self.current_filename)
-        state["erase_rects"].append(
-            [round(x1, 3), round(y1, 3), round(x2, 3), round(y2, 3)]
-        )
+        rect = [round(x1, 3), round(y1, 3), round(x2, 3), round(y2, 3)]
+        state["erase_rects"].append(rect)
+        state["edit_operations"].append({"type": "erase_rect", "rect": rect})
         if self.annotation_above_zoom_limit():
             state["zoom_erase_violation"] = True
             state["accepted_zoom_erase"] = False
@@ -1103,6 +1110,7 @@ class ScratchAnnotatorApp:
         state["hidden_base_ids"] = []
         state["added_strokes"] = []
         state["erase_rects"] = []
+        state["edit_operations"] = []
         if self.annotation_above_zoom_limit():
             state["zoom_erase_violation"] = True
             state["accepted_zoom_erase"] = False
@@ -1131,6 +1139,7 @@ class ScratchAnnotatorApp:
                 "added_strokes": [],
                 "hidden_base_ids": [],
                 "erase_rects": [],
+                "edit_operations": [],
                 "clear_base": False,
                 "zoom_erase_violation": False,
                 "accepted_zoom_erase": False,
@@ -1248,11 +1257,19 @@ class ScratchAnnotatorApp:
                 messagebox.showerror(APP_TITLE, f"Annotation konnte nicht gespeichert werden:\n{exc}", parent=self.root)
             return False
 
-    def save_current(self) -> bool:
+    def save_current(self, *, silent: bool = False) -> bool:
+        """Save editable JSON and the current binary PNG mask together.
+
+        Automatic calls use ``silent=True`` so normal annotation work is not
+        interrupted by confirmation dialogs. The toolbar button and Ctrl+S
+        keep their visible status message.
+        """
+
         if self.project is None or self.current_filename is None or self.current_series is None:
             return False
         try:
-            self.save_project_only(silent=False)
+            if not self.save_project_only(silent=silent):
+                return False
             mask = self.get_mask()
             assert mask is not None
             write_mask(
@@ -1260,12 +1277,18 @@ class ScratchAnnotatorApp:
                 mask,
                 (self.current_series.width, self.current_series.height),
             )
-            self.image_status_var.set(
-                f"Gespeichert: {self.current_filename} → {self.mask_path(self.current_filename).name}"
-            )
+            if not silent:
+                self.image_status_var.set(
+                    f"Gespeichert: {self.current_filename} → {self.mask_path(self.current_filename).name}"
+                )
             return True
         except Exception as exc:
-            messagebox.showerror(APP_TITLE, f"Speichern fehlgeschlagen:\n{exc}", parent=self.root)
+            if not silent:
+                messagebox.showerror(APP_TITLE, f"Speichern fehlgeschlagen:\n{exc}", parent=self.root)
+            else:
+                # Keep the failure visible without interrupting the annotation
+                # flow. A later manual save still shows the full error dialog.
+                self.image_status_var.set(f"Automatisches Speichern fehlgeschlagen: {exc}")
             return False
 
     def finish_current_image(self) -> None:
@@ -1402,7 +1425,7 @@ class ScratchAnnotatorApp:
         return "break"
 
     def on_close(self) -> None:
-        self.save_project_only(silent=True)
+        self.save_current(silent=True)
         self.root.destroy()
 
 
