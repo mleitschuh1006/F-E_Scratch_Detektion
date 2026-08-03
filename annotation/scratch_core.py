@@ -84,7 +84,7 @@ def _read_image_size(path: Path) -> tuple[int, int]:
 
 
 def discover_series(images_dir: Path) -> dict[str, SeriesFiles]:
-    """Discover image series using ``<series>_all.<ext>`` as master naming rule.
+    """Discover image series using ``<series>_max_flat.<ext>`` as master naming rule.
 
     A series may contain any number of slaves. Every image in the series must
     have exactly the same dimensions as its master.
@@ -102,16 +102,16 @@ def discover_series(images_dir: Path) -> dict[str, SeriesFiles]:
 
     masters: dict[str, Path] = {}
     for path in images:
-        if path.stem.lower().endswith("_all"):
-            series_id = path.stem[:-4]
+        if path.stem.lower().endswith("_max_flat"):
+            series_id = path.stem[:-9]
             if series_id in masters:
-                raise ValueError(f"Multiple _all master images found for series '{series_id}'")
+                raise ValueError(f"Multiple _max_flat master images found for series '{series_id}'")
             masters[series_id] = path
 
     grouped: dict[str, list[Path]] = {series_id: [] for series_id in masters}
     series_ids_by_length = sorted(masters, key=len, reverse=True)
     for path in images:
-        if path.stem.lower().endswith("_all"):
+        if path.stem.lower().endswith("_max_flat"):
             continue
         matching_series = next(
             (series_id for series_id in series_ids_by_length if path.stem.startswith(series_id + "_")),
@@ -142,7 +142,7 @@ def discover_series(images_dir: Path) -> dict[str, SeriesFiles]:
 
     if not result:
         raise ValueError(
-            f"No master image matching '<series>_all.<ext>' was found in {images_dir}"
+            f"No master image matching '<series>_max_flat.<ext>' was found in {images_dir}"
         )
     return result
 

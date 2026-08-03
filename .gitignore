@@ -3,6 +3,7 @@
 *.jpeg
 *.png
 data/images/
+tryout/
 
 # Erlaube aber PNGs in den Annotations-Ordnern
 !data/annotations_manual/**/*.png
