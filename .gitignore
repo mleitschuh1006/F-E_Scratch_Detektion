@@ -2,6 +2,9 @@
 *.jpg
 *.jpeg
 *.png
+*.txt
+*.pt
+*.cache
 data/images/
 tryout/
 

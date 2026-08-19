@@ -1,0 +1,10 @@
+path: /home/lukas/Dokumente/ws/F-E_Scratch_Detektion/YOLOv16/dataset_tiled_sem
+train: images/train
+val: images/val
+test: images/test
+
+masks_dir: masks
+
+names:
+  0: background
+  1: scratch

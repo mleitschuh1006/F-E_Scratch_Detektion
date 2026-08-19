@@ -1,0 +1,8 @@
+path: /home/lukas/Dokumente/ws/F-E_Scratch_Detektion/YOLOv16/dataset_tiled
+
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: scratch
