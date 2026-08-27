@@ -472,62 +472,6 @@ def filter_parallel_edge_components(
 
     return result, rejected, diagnostics
 
-
-def filter_bright_evidence(
-    binary: np.ndarray,
-    gray: np.ndarray,
-    p: dict[str, Any],
-) -> np.ndarray:
-    """
-    Keep a predicted component only when it contains sufficient absolute
-    BRIGHT local evidence in the unstretched gray image.
-
-    This is deliberately a component-level gate: the original absolute
-    local-residual mask is preserved for segmentation, but a component cannot
-    survive purely because of dark deviations or because it belongs to the
-    strongest percentile of an otherwise weak image.
-    """
-    cfg = p.get("bright_evidence_filter", {})
-    if not bool(cfg.get("enabled", False)):
-        return binary.copy()
-
-    work = gray
-    blur_k = _odd(int(p["blur_kernel_px"]), minimum=3)
-    if blur_k >= 3:
-        work = cv2.GaussianBlur(work, (blur_k, blur_k), 0)
-
-    feature_k = _odd(int(p["feature_kernel_px"]), minimum=3)
-    background = cv2.GaussianBlur(work, (feature_k, feature_k), 0)
-    bright_response = cv2.subtract(work, background)
-
-    min_gray_residual = float(cfg.get("min_gray_residual", 30))
-    min_fraction = float(cfg.get("min_fraction", 0.05))
-    min_pixels = int(cfg.get("min_pixels", 3))
-
-    n, labels, stats, _ = cv2.connectedComponentsWithStats(
-        binary.astype(np.uint8), 8
-    )
-    if n <= 1:
-        return binary.copy()
-
-    keep = np.zeros(n, dtype=bool)
-    for label in range(1, n):
-        component = labels == label
-        area = int(stats[label, cv2.CC_STAT_AREA])
-        strong_bright_pixels = int(
-            np.count_nonzero(bright_response[component] >= min_gray_residual)
-        )
-        strong_fraction = strong_bright_pixels / max(1, area)
-
-        if strong_bright_pixels < min_pixels:
-            continue
-        if strong_fraction < min_fraction:
-            continue
-
-        keep[label] = True
-
-    return keep[labels]
-
 def segment_scratches(image: np.ndarray, p: dict[str, Any], return_debug: bool = False):
     """Complete classical-CV scratch detection pipeline."""
     if image.ndim == 3:
@@ -557,12 +501,6 @@ def segment_scratches(image: np.ndarray, p: dict[str, Any], return_debug: bool =
         raw_roi,
         p,
     )
-
-    # Final minimal plausibility gate: a component must contain enough absolute
-    # bright local evidence in the ORIGINAL gray image. This prevents the
-    # percentile threshold from forcing weak structures into the result and
-    # rejects components that are caused only by dark local deviations.
-    final = filter_bright_evidence(final, gray, p)
     final &= scratch_roi
 
     if return_debug:

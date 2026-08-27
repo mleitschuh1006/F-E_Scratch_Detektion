@@ -1,7 +1,7 @@
 {
   "input_dir": "data/images",
   "mask_dir": "data/masks",
-  "output_dir": "results",
+  "output_dir": "results_opt",
   "overlay_alpha": 0.65,
   "pipeline": {
     "roi_min_gray": 3,
@@ -50,6 +50,12 @@
       "min_component_elongation": 2.5,
       "min_component_length_px": 40,
       "contour_tangent_window_px": 35
+    },
+    "bright_evidence_filter": {
+      "enabled": true,
+      "min_gray_residual": 30,
+      "min_fraction": 0.05,
+      "min_pixels": 3
     }
   },
   "show_hole_circles_in_overlay": true,

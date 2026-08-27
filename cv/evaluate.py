@@ -371,7 +371,7 @@ def main() -> None:
     pred_ci_low, pred_ci_high = wilson_interval(pred_component_hits_total, pred_component_total)
 
     summary = {
-        "method": "Frozen classical-CV scratch detector",
+        "method": "cv_opt classical-CV scratch detector",
         "evaluation_scope": (
             "Descriptive evaluation on the supplied dataset. If this dataset was used to tune "
             "parameters manually or automatically, these values are not an independent test-set estimate."

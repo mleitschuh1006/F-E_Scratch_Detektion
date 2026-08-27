@@ -1,10 +1,10 @@
-# Klassische CV-Kratzerdetektion – finaler eingefrorener Stand
+# cv_opt – klassische CV-Kratzerdetektion
 
 ## Zweck
 
 Dieses Projekt enthält den finalen klassischen Computer-Vision-Ansatz zur Detektion von Kratzern auf metallischen Oberflächen.
 
-Der Detektor ist **eingefroren**. Die Parameter in `config.json` entsprechen dem zuletzt abgestimmten Stand und sollten für die finale Auswertung nicht mehr verändert werden.
+`cv_opt` basiert vollständig auf dem zuvor eingefrorenen CV-Stand. Gegenüber diesem wurden nur zwei eng zusammenhängende Fehlfunktionen der Kandidatenbewertung korrigiert; ROI, Kontrastspreizung, Perzentil-Schwelle, Morphologie, Komponentenfilter, Bohrungsfilter und Außenkantenfilter bleiben unverändert.
 
 Die Auswertung wird vollständig reproduzierbar durch `evaluate.py` berechnet. Es werden keine manuell eingetragenen Ergebniswerte verwendet.
 
@@ -15,7 +15,8 @@ cv/
 ├── data/
 │   ├── images/              34 Originalbilder
 │   └── masks/               zugehörige Ground-Truth-Masken
-├── results/                 wird automatisch erzeugt
+├── results/                 alter Stand zum direkten Vergleich
+├── results_opt/             neue cv_opt-Ergebnisse
 ├── config.json              finale CV- und Evaluationsparameter
 ├── cv_pipeline.py           eigentliche CV-Pipeline
 ├── run_detection.py         erzeugt Prediction-Masks und Overlays
@@ -25,7 +26,7 @@ cv/
 └── README.md
 ```
 
-Nicht enthalten sind virtuelle Umgebungen, Python-Caches, alte Optimierungsläufe oder alte Ergebnisordner.
+Nicht enthalten sind virtuelle Umgebungen, Python-Caches oder alte Optimierungsläufe. Die kompakten alten Ergebnisdaten unter `results/` bleiben bewusst für den direkten Vergleich erhalten.
 
 ---
 
@@ -50,7 +51,7 @@ Dabei werden alle Bilder aus `data/images/` verarbeitet.
 Erzeugt werden:
 
 ```text
-results/
+results_opt/
 ├── prediction_masks/        binäre finale Detektionen
 ├── overlays/                visuelle Kontrolle
 ├── detection_summary.csv    einfache technische Statistik je Bild
@@ -75,7 +76,7 @@ Mit Zwischenschritten:
 uv run python run_detection.py --image 13_max_flat.png --debug
 ```
 
-Die Debug-Bilder landen dann unter `results/debug/`.
+Die Debug-Bilder landen dann unter `results_opt/debug/`.
 
 ---
 
@@ -97,7 +98,7 @@ Die Auswertung verwendet ausschließlich:
 
 ```text
 data/masks/                  Ground Truth
-results/prediction_masks/    finale CV-Vorhersagen
+results_opt/prediction_masks/ finale CV-Vorhersagen
 ```
 
 und berechnet die Ergebnisse bei jedem Lauf neu.
@@ -105,7 +106,7 @@ und berechnet die Ergebnisse bei jedem Lauf neu.
 Erzeugt werden nur vier Auswertungsdateien:
 
 ```text
-results/evaluation/
+results_opt/evaluation/
 ├── summary.json
 ├── per_image.csv
 ├── scratch_instances.csv
@@ -327,10 +328,57 @@ Damit wird nicht jede randnahe Struktur automatisch gelöscht.
 
 # 6. Wichtiger Hinweis zur Interpretation
 
-Die Auswertung beschreibt die Leistung des **eingefrorenen Verfahrens auf dem vorliegenden Datensatz**.
+Die Auswertung beschreibt die Leistung von **`cv_opt` auf dem vorliegenden Datensatz**.
 
 Da Teile dieses Datensatzes während der Entwicklung und Parameterwahl betrachtet wurden, sind die resultierenden Kennzahlen keine vollständig unabhängige Test-Set-Schätzung für beliebige zukünftige Bauteile.
 
 Für einen streng unabhängigen Generalisierungstest müsste später ein zusätzlicher, bei der Entwicklung vollständig unangetasteter Bilddatensatz verwendet werden.
 
 Für den Vergleich der untersuchten Verfahren auf demselben definierten Datensatz ist die hier implementierte Auswertung jedoch vollständig reproduzierbar, sofern für alle Verfahren dieselben Ground-Truth-Masken und Bewertungsdefinitionen verwendet werden.
+
+---
+
+# Änderungen in `cv_opt`
+
+## 1. Absolute Mindeststärke statt rein relativer Perzentilentscheidung
+
+Die bisherige 98-%-Perzentil-Schwelle bleibt unverändert. Neu ist lediglich eine abschließende Plausibilitätsprüfung auf Komponentenebene. Eine erkannte Komponente muss zusätzlich im **ungestreckten Original-Graustufenbild** ausreichend starke positive lokale Abweichungen enthalten.
+
+Aktuelle Parameter:
+
+```text
+min_gray_residual = 30
+min_fraction      = 0.05
+min_pixels        = 3
+```
+
+Damit kann die reine Perzentilentscheidung nicht mehr alleine eine Komponente akzeptieren, wenn das Bild nur sehr schwache lokale Unterschiede enthält. Die absolute Prüfung wird bewusst vor der bildweisen Grauwertspreizung definiert, damit sie nicht selbst durch die adaptive Spreizung verstärkt wird.
+
+## 2. Dunkle Strukturen gelten nicht alleine als Kratzerevidenz
+
+Der bestehende `local_residual` mit Betrag bleibt für die Segmentierungsform unverändert. Dadurch gehen keine Randpixel eines echten hellen Kratzers verloren. Eine Komponente wird aber nur behalten, wenn sie genügend **helle** lokale Evidenz enthält. Rein dunkle lokale Abweichungen können deshalb nicht mehr allein als Kratzerkomponente bestehen bleiben.
+
+Die neue Prüfung ist in `filter_bright_evidence()` in `cv_pipeline.py` umgesetzt und wird erst nach den bisherigen Filtern aufgerufen.
+
+## Ergebnisordner und direkter Vergleich
+
+Die alten Resultate bleiben unter `results/` erhalten. `cv_opt` schreibt neue Resultate separat nach `results_opt/`.
+
+```bash
+uv run python run_detection.py
+uv run python evaluate.py
+uv run python compare_evaluations.py
+```
+
+`compare_evaluations.py` stellt die wichtigsten alten und neuen Kennzahlen direkt gegenüber. Mit der aktuellen Einstellung ergibt sich auf dem vorhandenen Datensatz:
+
+```text
+Pixel Precision:                26.54 % -> 31.39 %
+Pixel Recall:                   38.22 % -> 36.13 %
+Pixel F1:                       31.33 % -> 33.59 %
+Pixel IoU:                      18.58 % -> 20.19 %
+Scratch Detection @ 15 %:      63.62 % -> 60.63 %
+Prediction Component Precision:33.00 % -> 41.13 %
+```
+
+Wichtig: `103_max_flat.png` bleibt trotz dieser beiden Korrekturen problematisch. Dort stammen die False Positives überwiegend von nicht vollständig ausgeschlossenen Lochrändern. Dies ist ein separates Problem der Bohrungs-/Strukturunterdrückung und wurde bewusst **nicht** durch weitere Sonderregeln verändert.
