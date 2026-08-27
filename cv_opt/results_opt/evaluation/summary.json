@@ -1,0 +1,126 @@
+{
+  "method": "cv_opt classical-CV scratch detector",
+  "evaluation_scope": "Descriptive evaluation on the supplied dataset. If this dataset was used to tune parameters manually or automatically, these values are not an independent test-set estimate.",
+  "n_image_mask_pairs": 34,
+  "definitions": {
+    "strict_pixel_metrics": "Prediction and ground truth must overlap at the same pixel.",
+    "tolerant_pixel_metrics": "Precision: predicted pixel is correct when a GT pixel lies within the tolerance radius. Recall: GT pixel is found when a prediction lies within the tolerance radius.",
+    "scratch_detection": "Each connected component in the GT mask is treated as one scratch. It counts as detected when at least the configured fraction of its pixels overlaps the prediction.",
+    "prediction_component_precision": "A connected prediction counts as GT-supported when at least the configured fraction of its own pixels overlaps any GT scratch pixel. This is not one-to-one object matching.",
+    "estimated_length_px": "PCA major-axis span of the GT scratch component.",
+    "estimated_width_px": "GT scratch area divided by its estimated PCA length.",
+    "confidence_interval": "95% Wilson interval for binomial detection rates."
+  },
+  "pixel_metrics_strict": {
+    "tp": 414846,
+    "fp": 906650,
+    "fn": 733425,
+    "tn": 104899831,
+    "precision": 0.3139214950329021,
+    "recall": 0.36127882703647485,
+    "f1": 0.3359393821360477,
+    "iou": 0.20187929365654447,
+    "specificity": 0.9914310542092407
+  },
+  "pixel_metrics_by_tolerance_px": {
+    "0": {
+      "tp": 414846,
+      "fp": 906650,
+      "fn": 733425,
+      "tn": 104899831,
+      "precision": 0.3139214950329021,
+      "recall": 0.36127882703647485,
+      "f1": 0.3359393821360477,
+      "iou": 0.20187929365654447,
+      "specificity": 0.9914310542092407
+    },
+    "2": {
+      "tolerance_px": 2,
+      "matched_prediction_pixels": 536429,
+      "prediction_pixels": 1321496,
+      "matched_gt_pixels": 542744,
+      "gt_pixels": 1148271,
+      "precision": 0.4059255570958974,
+      "recall": 0.472661941301313,
+      "f1": 0.4367591439458912
+    },
+    "5": {
+      "tolerance_px": 5,
+      "matched_prediction_pixels": 573230,
+      "prediction_pixels": 1321496,
+      "matched_gt_pixels": 621898,
+      "gt_pixels": 1148271,
+      "precision": 0.43377354150144987,
+      "recall": 0.5415951460935615,
+      "f1": 0.48172480328494166
+    },
+    "10": {
+      "tolerance_px": 10,
+      "matched_prediction_pixels": 589552,
+      "prediction_pixels": 1321496,
+      "matched_gt_pixels": 680538,
+      "gt_pixels": 1148271,
+      "precision": 0.4461246950425881,
+      "recall": 0.5926632301956594,
+      "f1": 0.509058098212593
+    }
+  },
+  "scratch_detection_by_gt_overlap": {
+    "0.05": {
+      "overlap_threshold": 0.05,
+      "n_scratches": 1303,
+      "n_detected": 847,
+      "detection_rate": 0.6500383729854182,
+      "ci95_low": 0.6237342993250038,
+      "ci95_high": 0.6754603714293522
+    },
+    "0.15": {
+      "overlap_threshold": 0.15,
+      "n_scratches": 1303,
+      "n_detected": 790,
+      "detection_rate": 0.6062931696085956,
+      "ci95_low": 0.5794899461064076,
+      "ci95_high": 0.632471495834658
+    },
+    "0.30": {
+      "overlap_threshold": 0.3,
+      "n_scratches": 1303,
+      "n_detected": 670,
+      "detection_rate": 0.5141980046047583,
+      "ci95_low": 0.4870585967603096,
+      "ci95_high": 0.5412539424159339
+    },
+    "0.50": {
+      "overlap_threshold": 0.5,
+      "n_scratches": 1303,
+      "n_detected": 481,
+      "detection_rate": 0.36914811972371453,
+      "ci95_low": 0.34336614054167147,
+      "ci95_high": 0.39569937677997713
+    }
+  },
+  "prediction_component_precision": {
+    "overlap_threshold": 0.15,
+    "n_prediction_components": 2762,
+    "n_gt_supported_components": 1136,
+    "precision": 0.4112961622013034,
+    "ci95_low": 0.3930806004497916,
+    "ci95_high": 0.42975812429442156
+  },
+  "primary_scratch_overlap": 0.15,
+  "reliable_size_thresholds": {
+    "target_detection_rate": 0.8,
+    "minimum_samples": 20,
+    "meaning": "Smallest observed size for which scratches at or above that size reach the target empirical detection rate, subject to the minimum sample count.",
+    "area_px": null,
+    "estimated_length_px": null,
+    "estimated_width_px": {
+      "threshold": 11.477547929139215,
+      "n_scratches_at_or_above": 96,
+      "n_detected": 77,
+      "detection_rate": 0.8020833333333334,
+      "ci95_low": 0.7114483305401257,
+      "ci95_high": 0.869472668462529
+    }
+  }
+}

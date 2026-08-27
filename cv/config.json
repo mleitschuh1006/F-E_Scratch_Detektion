@@ -1,0 +1,68 @@
+{
+  "input_dir": "data/images",
+  "mask_dir": "data/masks",
+  "output_dir": "results",
+  "overlay_alpha": 0.65,
+  "pipeline": {
+    "roi_min_gray": 3,
+    "roi_close_kernel_px": 41,
+    "roi_erode_kernel_px": 9,
+    "stretch_low_percentile": 0.0,
+    "stretch_high_percentile": 99.5,
+    "clahe_clip_limit": 0.0,
+    "clahe_grid_size": 8,
+    "blur_kernel_px": 3,
+    "feature_mode": "local_residual",
+    "feature_kernel_px": 9,
+    "threshold_percentile": 98.0,
+    "opening_kernel_px": 0,
+    "closing_kernel_px": 7,
+    "min_component_area_px": 80,
+    "min_component_elongation": 1.0,
+    "min_component_max_dimension_px": 0,
+    "extra_boundary_exclusion_px": 30,
+    
+    
+    "hole_detection": {
+      "enabled": true,
+      "detection_scale": 1.0,
+      "blur_kernel_px": 9,
+      "dp": 1.2,
+      "min_distance_px": 25,
+      "canny_threshold": 120,
+      "accumulator_threshold": 18,
+      "min_radius_px": 3,
+      "max_radius_px": 105,
+      "center_radius_factor": 0.55,
+      "center_max_gray": 40,
+      "dark_gray_threshold": 40,
+      "min_dark_fraction": 0.7,
+      "ring_inner_factor": 0.85,
+      "ring_outer_factor": 1.3,
+      "min_ring_contrast": 40,
+      "exclusion_margin_px": 10
+    },
+    "edge_parallel_filter": {
+      "enabled": true,
+      "max_distance_px": 90,
+      "min_near_edge_fraction": 0.65,
+      "max_angle_difference_deg": 15.0,
+      "min_component_elongation": 2.5,
+      "min_component_length_px": 40,
+      "contour_tangent_window_px": 35
+    }
+  },
+  "show_hole_circles_in_overlay": true,
+  "show_edge_rejections_in_overlay": true,
+  "evaluation": {
+    "primary_scratch_overlap": 0.15,
+    "scratch_overlap_thresholds": [0.05, 0.15, 0.30, 0.50],
+    "prediction_component_overlap": 0.15,
+    "pixel_tolerances_px": [0, 2, 5, 10],
+    "area_bins_px": [0, 100, 200, 400, 800, 1600, 3200],
+    "length_bins_px": [0, 25, 50, 100, 150, 250, 400, 800],
+    "width_bins_px": [0, 2, 4, 6, 8, 12, 20, 40],
+    "reliable_recall_target": 0.80,
+    "reliable_min_samples": 20
+  }
+}
