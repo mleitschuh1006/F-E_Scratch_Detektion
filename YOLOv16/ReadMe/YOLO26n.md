@@ -36,17 +36,11 @@ Für jeden Datensatz werden automatisch Kontrollbilder unter `dataset.../control
 **Detektion**
 ![Detection Labels](DatasetGenerationControl_det.jpeg)
 
-Darstellung: `Original | Maske | Bounding Boxes`
-
 **Instanzsegmentierung**
 ![Instance Segmentation Labels](DatasetGenerationControl_seg.jpeg)
 
-Darstellung: `Original | Maske | Segmentation Polygons`
-
 **Semantische Segmentierung**
 ![Semantic Segmentation Labels](DatasetGenerationControl_sem.jpeg)
-
-Darstellung: `Original | Semantic Mask (0/1) | Scratch Overlay`
 
 ---
 
