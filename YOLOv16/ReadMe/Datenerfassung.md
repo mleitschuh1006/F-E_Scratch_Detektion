@@ -19,6 +19,8 @@ Der Versuchsaufbau besteht aus:
 
 Der Raspberry Pi liefert ein 3,3-V-Steuersignal. Über einen Logikpegelwandler wird dieses auf den für die WS2812B-LEDs benötigten 5-V-Pegel umgesetzt.
 
+![Hardwareaufbau zur Datenerfassung](AufbauDatenerfassung.jpeg)
+
 ## Ablauf der Datenaufnahme
 
 Das Aufnahmeskript wird auf dem Engineering PC ausgeführt. Dieser steuert sowohl die Kamera als auch den Ablauf der Beleuchtung.
