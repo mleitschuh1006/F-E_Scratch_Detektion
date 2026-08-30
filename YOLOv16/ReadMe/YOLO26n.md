@@ -36,7 +36,7 @@ Für jeden Datensatz werden automatisch Kontrollbilder unter `dataset.../control
 **Detektion**
 
 ```markdown
-![Detection Labels](dataset_tiled/control/BEISPIEL_check.png)
+![Detection Labels](DatasetGenerationControl_det.jpeg)
 ```
 
 Darstellung: `Original | Maske | Bounding Boxes`
@@ -44,7 +44,7 @@ Darstellung: `Original | Maske | Bounding Boxes`
 **Instanzsegmentierung**
 
 ```markdown
-![Instance Segmentation Labels](dataset_tiled_seg/control/BEISPIEL_check.png)
+![Instance Segmentation Labels](DatasetGenerationControl_seg.jpeg)
 ```
 
 Darstellung: `Original | Maske | Segmentation Polygons`
@@ -52,7 +52,7 @@ Darstellung: `Original | Maske | Segmentation Polygons`
 **Semantische Segmentierung**
 
 ```markdown
-![Semantic Segmentation Labels](dataset_tiled_sem/control/BEISPIEL_check.png)
+![Semantic Segmentation Labels](DatasetGenerationControl_sem.jpeg)
 ```
 
 Darstellung: `Original | Semantic Mask (0/1) | Scratch Overlay`
@@ -97,7 +97,13 @@ mit
 
 verwendet.
 
-Dadurch können alle drei Verfahren auf Pixelebene miteinander verglichen werden. Bewertet werden unter anderem:
+Dadurch können alle drei Verfahren auf Pixelebene miteinander verglichen werden.
+
+```markdown
+![Prediction Dataset im Vergleich der Verfahren](PredictDataset_det_seg_sem.jpeg)
+```
+
+Bewertet werden unter anderem:
 
 - Precision und Recall
 - Dice / F1
@@ -106,17 +112,7 @@ Dadurch können alle drei Verfahren auf Pixelebene miteinander verglichen werden
 - zusätzliche falsch-positive Pixel
 - Inferenzzeit
 
-Die Evaluation erzeugt neben CSV-Dateien automatisch Diagramme und qualitative Vergleichsbilder unter `test_results/`.
-
-Beispielsweise:
-
-```markdown
-![Modellvergleich](test_results/plots/01_quality_metrics.png)
-
-![Pixelabdeckung](test_results/plots/02_labeled_pixel_coverage.png)
-
-![Qualitativer Vergleich](test_results/examples/BEISPIEL_comparison.png)
-```
+Die Evaluation erzeugt automatisch qualitative Vergleichsbilder unter `test_results/`.
 
 Die **semantische Segmentierung zeigte dabei die stärksten Ergebnisse für die pixelgenaue Kratzerlokalisierung**. Daher wird das Modell
 
@@ -124,4 +120,4 @@ Die **semantische Segmentierung zeigte dabei die stärksten Ergebnisse für die 
 yolo26n_320_sem_scratch
 ```
 
-für die weiterführende Evaluation und den Vergleich mit anderen Verfahren, beispielsweise klassischen Bildverarbeitungs- und Anomalieerkennungsansätzen, verwendet.
+für die weiterführende Evaluation verwendet.
