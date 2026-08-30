@@ -1,4 +1,4 @@
-# YOLO26-basierte Kratzererkennung
+# YOLO26n Methoden
 
 In diesem Repository werden drei YOLO26-basierte Ansätze zur Kratzererkennung untersucht:
 
