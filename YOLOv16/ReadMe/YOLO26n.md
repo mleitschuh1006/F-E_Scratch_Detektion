@@ -34,26 +34,17 @@ Die unterschiedlichen Labelrepräsentationen werden direkt aus den vorhandenen M
 Für jeden Datensatz werden automatisch Kontrollbilder unter `dataset.../control/` erzeugt. Sie ermöglichen eine schnelle visuelle Überprüfung der erzeugten Labels.
 
 **Detektion**
-
-```markdown
 ![Detection Labels](DatasetGenerationControl_det.jpeg)
-```
 
 Darstellung: `Original | Maske | Bounding Boxes`
 
 **Instanzsegmentierung**
-
-```markdown
 ![Instance Segmentation Labels](DatasetGenerationControl_seg.jpeg)
-```
 
 Darstellung: `Original | Maske | Segmentation Polygons`
 
 **Semantische Segmentierung**
-
-```markdown
 ![Semantic Segmentation Labels](DatasetGenerationControl_sem.jpeg)
-```
 
 Darstellung: `Original | Semantic Mask (0/1) | Scratch Overlay`
 
@@ -99,9 +90,7 @@ verwendet.
 
 Dadurch können alle drei Verfahren auf Pixelebene miteinander verglichen werden.
 
-```markdown
 ![Prediction Dataset im Vergleich der Verfahren](PredictDataset_det_seg_sem.jpeg)
-```
 
 Bewertet werden unter anderem:
 
