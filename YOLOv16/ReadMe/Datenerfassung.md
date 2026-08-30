@@ -37,10 +37,10 @@ Für jede Aufnahmeserie wird folgender Ablauf durchgeführt:
 Die Bilder werden automatisch anhand der jeweiligen Beleuchtungsrichtung benannt, beispielsweise:
 
 ```text
-01_top.bmp
-01_right.bmp
-01_bottom.bmp
-01_left.bmp
+[prefix]_top.bmp
+[prefix]_right.bmp
+[prefix]_bottom.bmp
+[prefix]_left.bmp
 ```
 
 Die einzelnen Beleuchtungsrichtungen und die dafür verwendeten LEDs sind in `led_config.yaml` definiert.
