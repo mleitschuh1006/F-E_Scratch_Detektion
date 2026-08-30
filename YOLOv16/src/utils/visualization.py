@@ -10,23 +10,12 @@ def draw_title(
     image: np.ndarray,
     text: str,
 ) -> None:
-    """Draw a scalable green title with a black outline in-place."""
+    """Draw a scalable green title"""
 
-    font_scale = max(1.5, image.shape[0] / 180)
-    thickness = max(2, int(font_scale * 2))
+    font_scale = max(1.0, image.shape[0] / 300)
+    thickness = max(1, int(font_scale * 2.0))
     text_x = 25
-    text_y = int(30 + 20 * font_scale)
-
-    cv2.putText(
-        image,
-        text,
-        (text_x, text_y),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        font_scale,
-        (0, 0, 0),
-        thickness + 3,
-        cv2.LINE_AA,
-    )
+    text_y = int(25 + 18 * font_scale)
 
     cv2.putText(
         image,

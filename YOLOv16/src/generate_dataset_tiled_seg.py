@@ -120,7 +120,7 @@ def visualize_random_samples(
 
         draw_title(image, "Original")
         draw_title(mask_visualization, "Mask")
-        draw_title(polygon_image, "YOLO Segmentation Polygons")
+        draw_title(polygon_image, "YOLO Polygons")
 
         comparison = cv2.hconcat([image, mask_visualization, polygon_image])
         cv2.imwrite(
